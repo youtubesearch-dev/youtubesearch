@@ -1,0 +1,42 @@
+[project]
+name = "youtubesearch-mcp"
+version = "0.1.1"
+description = "MCP server for YouTubeSearch — clean YouTube data for AI agents"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    # Pin <2: mcp 2.0 (beta) renames FastMCP and moves transport params.
+    "mcp>=1.27,<2",
+    "httpx>=0.27",
+]
+
+[project.urls]
+Homepage = "https://youtubesearch.dev"
+Documentation = "https://youtubesearch.dev/docs"
+Repository = "https://github.com/youtubesearch-dev/youtubesearch"
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8",
+    "mypy>=1.13",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.17,<0.9.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "yts_mcp"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RUF", "ASYNC"]
+
+[tool.mypy]
+strict = true
+packages = ["yts_mcp"]
+mypy_path = "src"

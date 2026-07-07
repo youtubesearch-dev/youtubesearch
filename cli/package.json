@@ -1,0 +1,37 @@
+{
+  "name": "@youtubesearch/cli",
+  "version": "0.1.1",
+  "description": "Agent-optimized YouTube search, transcripts, and summaries. CLI for the YouTubeSearch API.",
+  "license": "MIT",
+  "homepage": "https://youtubesearch.dev",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/youtubesearch-dev/youtubesearch.git",
+    "directory": "cli"
+  },
+  "bugs": {
+    "url": "https://github.com/youtubesearch-dev/youtubesearch/issues"
+  },
+  "type": "module",
+  "bin": {
+    "youtubesearch": "dist/cli.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "typescript": "^5.9"
+  }
+}

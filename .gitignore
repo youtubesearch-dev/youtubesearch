@@ -1,0 +1,16 @@
+# Node
+node_modules/
+dist/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Env & editor
+.env
+.env.*
+.DS_Store
