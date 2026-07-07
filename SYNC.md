@@ -22,7 +22,7 @@ package sources over, then re-apply the deliberate divergences below.
 | File | Change | Why |
 |---|---|---|
 | `src/api.ts` | `DEFAULT_BASE`: pre-cutover deploy hostname → `https://api.youtubesearch.dev` | Public domain (post-cutover); no deploy hostnames in public code |
-| `package.json` | `name`: `youtubesearch` → `@youtubesearch/cli`; `version` `0.1.0` → `0.1.1` | Publishes under the npm org scope; 0.1.1 = new default base URL |
+| `package.json` | `name`: `youtubesearch` → `@youtubesearch/cli`; `version` `0.1.0` → `0.1.2` | Publishes under the npm org scope. 0.1.1 = new default base URL; 0.1.2 = republish under the persona npm account (`dylanatexe`), no functional change (D-032 pseudonymity) |
 | `package.json` | Added `homepage`, `repository`, `bugs`, `publishConfig.access: public`, and a `typecheck` script | Public-package metadata; scoped packages default to restricted; CI runs typecheck |
 | `package-lock.json` | Regenerated (`npm install --package-lock-only`) after the rename | `npm ci` validates name/version against the lockfile |
 | `README.md` | New file (public package readme, used by npm) | Does not exist upstream |
