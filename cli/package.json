@@ -1,6 +1,6 @@
 {
   "name": "@youtubesearch/cli",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Agent-optimized YouTube search, transcripts, and summaries. CLI for the YouTubeSearch API.",
   "license": "MIT",
   "homepage": "https://youtubesearch.dev",

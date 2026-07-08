@@ -57,9 +57,6 @@ npx @youtubesearch/cli auth login    # paste your key once (keyless works withou
 
 Every command above works keyless — that video is cached.
 
-> `@youtubesearch/cli` is publishing to npm this week; until then, run it from
-> source (below).
-
 Results go to stdout, diagnostics to stderr, `--json` everywhere — built for
 pipelines and agents, not humans squinting at colors.
 

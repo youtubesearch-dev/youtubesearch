@@ -22,7 +22,7 @@ package sources over, then re-apply the deliberate divergences below.
 | File | Change | Why |
 |---|---|---|
 | `src/api.ts` | `DEFAULT_BASE`: pre-cutover deploy hostname → `https://api.youtubesearch.dev` | Public domain (post-cutover); no deploy hostnames in public code |
-| `package.json` | `name`: `youtubesearch` → `@youtubesearch/cli`; `version` `0.1.0` → `0.1.2` | Publishes under the npm org scope. 0.1.1 = new default base URL; 0.1.2 = republish under the persona npm account (`dylanatexe`), no functional change (D-032 pseudonymity) |
+| `package.json` | `name`: `youtubesearch` → `@youtubesearch/cli`; `version` `0.1.0` → `0.1.3` | Publishes under the npm org scope. 0.1.1 = new default base URL; 0.1.2 = republish under the persona npm account (`dylanatexe`); 0.1.3 = clean-persona republish — drops the real identity that `0.1.2`'s frozen version metadata still embedded (it was published while the old owner was still attached) AND ships this README (0.1.2 was published from the monorepo dir, which has none). No functional change (D-032 pseudonymity follow-up). **Publish 0.1.3 from THIS dir, then `npm unpublish @youtubesearch/cli@0.1.2`.** |
 | `package.json` | Added `homepage`, `repository`, `bugs`, `publishConfig.access: public`, and a `typecheck` script | Public-package metadata; scoped packages default to restricted; CI runs typecheck |
 | `package-lock.json` | Regenerated (`npm install --package-lock-only`) after the rename | `npm ci` validates name/version against the lockfile |
 | `README.md` | New file (public package readme, used by npm) | Does not exist upstream |
