@@ -41,6 +41,8 @@ Environment:
   YOUTUBESEARCH_API_BASE  API base URL (default ${apiBase()})
 
 Without a key the CLI still works on the keyless tier (cached content only).
+With --json, results print to stdout and errors print a typed JSON
+{error, message, retryAfter?} envelope to stderr (stdout stays success-only).
 Exit codes: 0 success, 1 API or network error, 2 usage error, 3 auth error.
 `;
 
@@ -157,6 +159,21 @@ function requireId(positionals: string[], usage: string): string {
 
 function printJson(data: unknown): void {
   process.stdout.write(JSON.stringify(data, null, 2) + "\n");
+}
+
+/** True when the caller asked for --json output anywhere in the argv. */
+function wantsJson(argv: string[]): boolean {
+  return argv.includes("--json");
+}
+
+/**
+ * Error twin of --json: emit the typed envelope to stderr so stdout stays
+ * success-only and an agent can parse the failure the same way it parses a hit.
+ */
+function printErrorEnvelope(code: string, message: string, retryAfter?: number): void {
+  const envelope: { error: string; message: string; retryAfter?: number } = { error: code, message };
+  if (retryAfter !== undefined) envelope.retryAfter = retryAfter;
+  process.stderr.write(JSON.stringify(envelope) + "\n");
 }
 
 function readLineFromStdin(): Promise<string> {
@@ -381,26 +398,41 @@ async function run(argv: string[]): Promise<number> {
 }
 
 async function main(): Promise<void> {
+  const argv = process.argv.slice(2);
+  const json = wantsJson(argv);
   try {
-    process.exitCode = await run(process.argv.slice(2));
+    process.exitCode = await run(argv);
   } catch (err) {
     if (err instanceof UsageError) {
-      process.stderr.write(`error: ${err.message}\n`);
+      if (json) printErrorEnvelope("USAGE", err.message);
+      else process.stderr.write(`error: ${err.message}\n`);
       process.exitCode = 2;
       return;
     }
     if (err instanceof ApiError) {
-      process.stderr.write(`${err.code}: ${err.message}\n`);
-      if (err.status === 401 && err.code === "KEY_REQUIRED") {
-        process.stderr.write("hint: run 'youtubesearch auth login' to configure an API key\n");
+      const retry = err.retryAfter !== null ? Number(err.retryAfter) : NaN;
+      const showRetry = (err.status === 402 || err.status === 429) && Number.isFinite(retry);
+      if (json) {
+        printErrorEnvelope(err.code, err.message, showRetry ? retry : undefined);
+      } else {
+        process.stderr.write(`${err.code}: ${err.message}\n`);
+        if (err.status === 401 && err.code === "KEY_REQUIRED") {
+          process.stderr.write("hint: run 'youtubesearch auth login' to configure an API key\n");
+        }
+        if (showRetry) {
+          process.stderr.write(`retry-after: ${retry}s\n`);
+        }
       }
-      if ((err.status === 402 || err.status === 429) && err.retryAfter) {
-        process.stderr.write(`retry-after: ${err.retryAfter}s\n`);
-      }
-      process.exitCode = err.status === 401 || err.status === 403 ? 3 : 1;
+      // A 400 usage-class error (bad video id / invalid params) is a usage
+      // error on our side too — exit 2, matching the documented contract that
+      // exit 2 means usage error (the API validates the 11-char id pattern).
+      const usageError =
+        err.status === 400 && (err.code === "INVALID_VIDEO_ID" || err.code === "INVALID_REQUEST");
+      process.exitCode = err.status === 401 || err.status === 403 ? 3 : usageError ? 2 : 1;
       return;
     }
-    process.stderr.write(`error: ${err instanceof Error ? err.message : String(err)}\n`);
+    if (json) printErrorEnvelope("ERROR", err instanceof Error ? err.message : String(err));
+    else process.stderr.write(`error: ${err instanceof Error ? err.message : String(err)}\n`);
     process.exitCode = 1;
   }
 }

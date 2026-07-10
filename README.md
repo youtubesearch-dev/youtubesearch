@@ -25,9 +25,10 @@ The API itself (ingestion, index, cache) is a hosted service:
 | Timestamped transcript (windowable, token-cappable) | `GET /v1/videos/{id}/transcript` | `get_transcript` |
 | Structured summary (sectioned) | `GET /v1/videos/{id}/summary` | `get_summary` |
 
-Every video returns a transcript — captions when they exist, speech-to-text
-when they don't. Errors are typed (`{"error": "CODE", "message": "..."}`) and
-failed calls are never billed.
+Captions when present, ASR fallback when absent — the rare genuinely-
+unextractable video (no captions, no available audio, age-restricted, or
+removed) returns a typed error saying exactly why. Errors are typed
+(`{"error": "CODE", "message": "..."}`) and failed calls are never billed.
 
 ## Quickstart 1 — hosted MCP (recommended)
 

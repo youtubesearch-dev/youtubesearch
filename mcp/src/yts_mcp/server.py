@@ -8,6 +8,7 @@ content only).
 """
 
 import os
+import urllib.parse
 from typing import Any, Literal
 
 import httpx
@@ -69,8 +70,15 @@ async def _call(
     except ValueError as exc:
         raise RuntimeError(f"API returned non-JSON (HTTP {resp.status_code}).") from exc
     if resp.status_code >= 400:
-        # Surface the API's typed, honest error verbatim to the agent.
-        raise RuntimeError(f"{body.get('error', 'ERROR')}: {body.get('message', '')}")
+        # Surface the API's typed, honest error verbatim to the agent. On a
+        # rate-limit / *_BLOCKED 429 the API sends Retry-After — expose it (we
+        # don't auto-retry or hide the error; we make it actionable so the agent
+        # can pace itself instead of guessing).
+        message = f"{body.get('error', 'ERROR')}: {body.get('message', '')}"
+        retry_after = resp.headers.get("retry-after")
+        if retry_after:
+            message += f" (retry after {retry_after}s)"
+        raise RuntimeError(message)
     return body
 
 
@@ -79,18 +87,28 @@ async def _call(
     description=(
         "Search YouTube. Returns top videos with native metadata (title, channel, "
         "duration_s, view_count, published, thumbnail, description snippet) plus a "
-        "cached executive summary when one exists. Costs 1 credit per query."
+        "cached executive summary when one exists. Pass `query` for a single "
+        "search, or `queries` (up to 5) to batch several in ONE call/round-trip "
+        "(results come back per query). Each query in the batch consumes one "
+        "rate-limit unit and one credit."
     ),
 )
 async def search_videos(
-    query: str,
     ctx: Context,  # type: ignore[type-arg]
+    query: str | None = None,
+    queries: list[str] | None = None,
     limit: int = 10,
     duration: Literal["short", "medium", "long"] | None = None,
     recency: Literal["hour", "day", "week", "month", "year"] | None = None,
     channel: str | None = None,
 ) -> dict[str, Any]:
-    body: dict[str, Any] = {"query": query, "limit": limit}
+    body: dict[str, Any] = {"limit": limit}
+    if queries is not None:
+        body["queries"] = queries
+    elif query is not None:
+        body["query"] = query
+    # Neither/both is left for the API's typed validator ("Provide exactly one of
+    # 'query' or 'queries'.") — one honest 400, not a second validation surface.
     filters = {
         k: v for k, v in (("duration", duration), ("recency", recency), ("channel", channel)) if v
     }
@@ -103,21 +121,27 @@ async def search_videos(
     annotations=READ_ONLY,
     description=(
         "Video metadata: title, channel, duration, views, publish date, full "
-        "description, and chapters. Costs 1 credit."
+        "description, and chapters. Costs 1 credit. Cached videos work keyless; "
+        "uncached videos require an API key (free at youtubesearch.dev)."
     ),
 )
 async def get_video(youtube_id: str, ctx: Context) -> dict[str, Any]:  # type: ignore[type-arg]
-    return await _call(ctx, "GET", f"/v1/videos/{youtube_id}")
+    vid = urllib.parse.quote(youtube_id, safe="")
+    return await _call(ctx, "GET", f"/v1/videos/{vid}")
 
 
 @mcp.tool(
     annotations=READ_ONLY,
     description=(
-        "Timestamped transcript of a video. Every video returns a transcript "
-        "(captions, or speech-to-text fallback when captions are disabled). "
+        "Timestamped transcript of a video. Transcripts come from captions, or a "
+        "speech-to-text fallback when captions are disabled; a genuinely "
+        "unextractable video (no captions and no available audio, age-restricted, "
+        "or removed) returns a typed error saying exactly that. "
         "format=markdown gives sparse [mm:ss] paragraphs (best for LLMs); "
         "start/end select a time window in seconds; max_tokens caps the size. "
-        "Costs 1 credit cached, 2 cold, 10 when speech-to-text runs."
+        "Costs 1 credit cached, 2 cold, 10 when speech-to-text runs. "
+        "Cached videos work keyless; uncached videos require an API key "
+        "(free at youtubesearch.dev)."
     ),
 )
 async def get_transcript(
@@ -135,25 +159,34 @@ async def get_transcript(
         params["end"] = end
     if max_tokens is not None:
         params["max_tokens"] = max_tokens
-    return await _call(ctx, "GET", f"/v1/videos/{youtube_id}/transcript", params=params)
+    vid = urllib.parse.quote(youtube_id, safe="")
+    return await _call(ctx, "GET", f"/v1/videos/{vid}/transcript", params=params)
 
 
 @mcp.tool(
     annotations=READ_ONLY,
     description=(
         "Structured summary of a video: executive_summary, key_points, "
-        "detailed_summary, insights, timestamps, action_items, resources. "
-        "Select fields with sections (comma-separated) to save tokens. "
-        "Costs 1 credit cached, 5 cold."
+        "detailed_summary, insights, timestamps. "
+        "Select fields with sections (comma-separated) to save tokens; "
+        "format=markdown composes the selected sections into one clean markdown "
+        "document (default json returns the structured sections). "
+        "Costs 1 credit cached, 5 cold. "
+        "Cached videos work keyless; uncached videos require an API key "
+        "(free at youtubesearch.dev)."
     ),
 )
 async def get_summary(
     youtube_id: str,
     ctx: Context,  # type: ignore[type-arg]
     sections: str | None = None,
+    format: Literal["json", "markdown"] = "json",
 ) -> dict[str, Any]:
-    params = {"sections": sections} if sections else None
-    return await _call(ctx, "GET", f"/v1/videos/{youtube_id}/summary", params=params)
+    params: dict[str, Any] = {"format": format}
+    if sections:
+        params["sections"] = sections
+    vid = urllib.parse.quote(youtube_id, safe="")
+    return await _call(ctx, "GET", f"/v1/videos/{vid}/summary", params=params)
 
 
 @mcp.custom_route("/health", methods=["GET"])  # type: ignore[untyped-decorator]  # SDK decorator is untyped
